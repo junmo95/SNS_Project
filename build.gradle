@@ -1,12 +1,13 @@
 plugins {
+	id 'org.springframework.boot' version '2.6.7'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
 	id 'java'
-	id 'org.springframework.boot' version '3.0.4'
-	id 'io.spring.dependency-management' version '1.1.0'
+	id "com.github.node-gradle.node" version "3.3.0" // node base 관련 코드 gradle로 빌드 가능하게
 }
 
 group = 'com.junmo'
 version = '0.0.1-SNAPSHOT'
-sourceCompatibility = '17'
+sourceCompatibility = '11'
 
 configurations {
 	compileOnly {
@@ -20,7 +21,7 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
+//	implementation 'org.springframework.boot:spring-boot-starter-security'  // 잠시 꺼둠
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
@@ -32,3 +33,30 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+//node 관련 설정
+node {
+	nodeModulesDir = file("$projectDir/front-end")
+	version = '18.3.0'
+	download = true
+}
+//npm build 가능하게끔 - react 동작을 위한
+task npmBuild(type: NpmTask) {
+	args = ['run', "build"]
+}
+// frontend code들을 실제 빌드되는 위치로 옮겨주는 작업
+task copyFrontEnd(type: Copy) {
+	from "$projectDir/front-end/static"
+	into 'build/resources/main/static/.'
+}
+// clean 시 frontend 코드도 같이 clean 되도록 설정
+task cleanFrontEnd(type: Delete) {
+	delete "$projectDir/front-end/static", "$projectDir/front-end/node_modules"
+}
+// 발동 조건 들
+npmBuild.dependsOn npmInstall // npmBuild 전에 npmInstall
+copyFrontEnd.dependsOn npmBuild
+compileJava.dependsOn copyFrontEnd
+
+clean.dependsOn cleanFrontEnd
+
